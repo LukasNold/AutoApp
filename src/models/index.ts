@@ -34,6 +34,15 @@ export interface MaintenanceEntry {
   notes?: string;
 }
 
+export interface FuelEntry {
+  id?: number;
+  vehicleId: number;
+  date: string;
+  mileage: number;
+  liters?: number;
+  totalPrice?: number;
+}
+
 export const MAINTENANCE_TYPES = [
   'Oil Change',
   'Tire Change',
