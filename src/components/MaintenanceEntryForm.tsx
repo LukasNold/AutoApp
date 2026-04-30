@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { logEntry } from '../services/maintenanceService';
+import { useQueryClient } from '@tanstack/react-query';
+import { logEntry } from '../services/api';
 import type { Vehicle } from '../models';
 import { MAINTENANCE_TYPES } from '../models';
 import { today } from '../utils/format';
@@ -16,6 +17,7 @@ type F = {
 };
 
 export default function MaintenanceEntryForm({ vehicles, defaultVehicleId, onDone }: Props) {
+  const queryClient = useQueryClient();
   const [f, setF] = useState<F>({
     vehicleId: defaultVehicleId?.toString() ?? (vehicles[0]?.id?.toString() ?? ''),
     date: today(),
@@ -56,6 +58,9 @@ export default function MaintenanceEntryForm({ vehicles, defaultVehicleId, onDon
       serviceProvider: f.serviceProvider.trim() || undefined,
       notes: f.notes.trim() || undefined,
     });
+    queryClient.invalidateQueries({ queryKey: ['entries'] });
+    queryClient.invalidateQueries({ queryKey: ['plans'] });
+    queryClient.invalidateQueries({ queryKey: ['vehicles'] });
     onDone();
   }
 

@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { db } from '../services/db';
+import { useQueryClient } from '@tanstack/react-query';
+import { addPlan, updatePlan } from '../services/api';
 import type { MaintenancePlan } from '../models';
 import { MAINTENANCE_TYPES } from '../models';
 
@@ -28,6 +29,7 @@ export default function MaintenancePlanForm({ vehicleId, plan, onDone }: Props) 
   const [f, setF] = useState<F>(() => toForm(plan));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const queryClient = useQueryClient();
 
   const set = (field: keyof F) => (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -49,10 +51,11 @@ export default function MaintenancePlanForm({ vehicleId, plan, onDone }: Props) 
       lastServiceMileage: f.lastServiceMileage ? parseInt(f.lastServiceMileage) : undefined,
     };
     if (plan?.id != null) {
-      await db.maintenancePlans.update(plan.id, data);
+      await updatePlan(plan.id, data);
     } else {
-      await db.maintenancePlans.add(data);
+      await addPlan(data);
     }
+    await queryClient.invalidateQueries({ queryKey: ['plans'] });
     onDone();
   }
 

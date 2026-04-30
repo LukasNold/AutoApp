@@ -1,10 +1,17 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import NavBar from './components/NavBar';
 import Dashboard from './pages/Dashboard';
 import Vehicles from './pages/Vehicles';
 import Maintenance from './pages/Maintenance';
+import LoginPage from './pages/LoginPage';
 
-export default function App() {
+function AppRoutes() {
+  const { session, loading } = useAuth();
+
+  if (loading) return null;
+  if (!session) return <LoginPage />;
+
   return (
     <BrowserRouter>
       <div className="min-h-screen bg-gray-50">
@@ -18,5 +25,13 @@ export default function App() {
         </main>
       </div>
     </BrowserRouter>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppRoutes />
+    </AuthProvider>
   );
 }

@@ -1,5 +1,5 @@
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '../services/db';
+import { useQuery } from '@tanstack/react-query';
+import { getVehicles, getPlans, getEntries } from '../services/api';
 import { getNextDueDate, getNextDueMileage, isOverdue } from '../utils/maintenance';
 import { formatDate, formatMileage, formatCurrency } from '../utils/format';
 import type { MaintenancePlan, Vehicle, MaintenanceEntry } from '../models';
@@ -55,9 +55,9 @@ function totalCost(entries: MaintenanceEntry[]) {
 }
 
 export default function Dashboard() {
-  const vehicles = useLiveQuery(() => db.vehicles.toArray()) ?? [];
-  const plans = useLiveQuery(() => db.maintenancePlans.toArray()) ?? [];
-  const entries = useLiveQuery(() => db.maintenanceEntries.toArray()) ?? [];
+  const { data: vehicles = [] } = useQuery({ queryKey: ['vehicles'], queryFn: getVehicles });
+  const { data: plans = [] } = useQuery({ queryKey: ['plans'], queryFn: getPlans });
+  const { data: entries = [] } = useQuery({ queryKey: ['entries'], queryFn: getEntries });
 
   const rows = buildRows(plans, vehicles);
   const overdueCount = rows.filter(r => r.overdue).length;

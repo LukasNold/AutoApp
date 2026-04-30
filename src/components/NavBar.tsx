@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '../services/db';
+import { useQuery } from '@tanstack/react-query';
+import { getVehicles } from '../services/api';
+import { supabase } from '../services/supabase';
 import Modal from './Modal';
 import FuelEntryForm from './FuelEntryForm';
 
@@ -13,7 +14,7 @@ const links = [
 
 export default function NavBar() {
   const [fuelOpen, setFuelOpen] = useState(false);
-  const vehicles = useLiveQuery(() => db.vehicles.toArray()) ?? [];
+  const { data: vehicles = [] } = useQuery({ queryKey: ['vehicles'], queryFn: getVehicles });
 
   return (
     <>
@@ -36,7 +37,7 @@ export default function NavBar() {
           </NavLink>
         ))}
 
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-2">
           <button
             onClick={() => setFuelOpen(true)}
             disabled={vehicles.length === 0}
@@ -44,6 +45,12 @@ export default function NavBar() {
           >
             <span>⛽</span>
             Log Fuel
+          </button>
+          <button
+            onClick={() => supabase.auth.signOut()}
+            className="px-3 py-1.5 text-sm text-gray-500 hover:text-gray-800 hover:bg-gray-50 rounded-md transition-colors"
+          >
+            Sign out
           </button>
         </div>
       </nav>

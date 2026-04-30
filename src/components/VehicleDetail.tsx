@@ -1,7 +1,6 @@
 import { useState } from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '../services/db';
-import { deleteEntry } from '../services/maintenanceService';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { getPlans, getEntries, deletePlan, deleteEntry } from '../services/api';
 import type { Vehicle, MaintenancePlan } from '../models';
 import { getNextDueDate, getNextDueMileage, isOverdue } from '../utils/maintenance';
 import { formatDate, formatMileage, formatCurrency } from '../utils/format';
@@ -12,7 +11,6 @@ import Modal from './Modal';
 
 interface Props {
   vehicle: Vehicle;
-  onVehicleUpdated: () => void;
 }
 
 type Tab = 'plans' | 'history';
@@ -26,29 +24,30 @@ function planDueText(plan: MaintenancePlan): string {
   return 'No schedule';
 }
 
-export default function VehicleDetail({ vehicle, onVehicleUpdated }: Props) {
+export default function VehicleDetail({ vehicle }: Props) {
   const [tab, setTab] = useState<Tab>('plans');
   const [editingPlan, setEditingPlan] = useState<MaintenancePlan | null | 'new'>(null);
   const [addingEntry, setAddingEntry] = useState(false);
 
-  const plans = useLiveQuery(
-    () => db.maintenancePlans.where('vehicleId').equals(vehicle.id!).toArray(),
-    [vehicle.id]
-  ) ?? [];
+  const queryClient = useQueryClient();
+  const { data: allPlans = [] } = useQuery({ queryKey: ['plans'], queryFn: getPlans });
+  const { data: allEntries = [] } = useQuery({ queryKey: ['entries'], queryFn: getEntries });
 
-  const entries = useLiveQuery(
-    () => db.maintenanceEntries.where('vehicleId').equals(vehicle.id!).reverse().sortBy('date'),
-    [vehicle.id]
-  ) ?? [];
+  const plans = allPlans.filter(p => p.vehicleId === vehicle.id);
+  const entries = [...allEntries.filter(e => e.vehicleId === vehicle.id)]
+    .sort((a, b) => b.date.localeCompare(a.date));
 
-  async function deletePlan(id: number) {
-    if (confirm('Delete this maintenance plan?')) await db.maintenancePlans.delete(id);
+  async function handleDeletePlan(id: number) {
+    if (confirm('Delete this maintenance plan?')) {
+      await deletePlan(id);
+      queryClient.invalidateQueries({ queryKey: ['plans'] });
+    }
   }
 
   async function handleDeleteEntry(id: number) {
     if (confirm('Delete this entry?')) {
       await deleteEntry(id);
-      onVehicleUpdated();
+      queryClient.invalidateQueries({ queryKey: ['entries'] });
     }
   }
 
@@ -126,7 +125,7 @@ export default function VehicleDetail({ vehicle, onVehicleUpdated }: Props) {
                   <button onClick={() => setEditingPlan(plan)} className="px-2 py-1 text-xs text-gray-500 hover:text-blue-600">
                     Edit
                   </button>
-                  <button onClick={() => deletePlan(plan.id!)} className="px-2 py-1 text-xs text-gray-500 hover:text-red-600">
+                  <button onClick={() => handleDeletePlan(plan.id!)} className="px-2 py-1 text-xs text-gray-500 hover:text-red-600">
                     ×
                   </button>
                 </div>
@@ -192,7 +191,7 @@ export default function VehicleDetail({ vehicle, onVehicleUpdated }: Props) {
           <MaintenanceEntryForm
             vehicles={[vehicle]}
             defaultVehicleId={vehicle.id}
-            onDone={() => { setAddingEntry(false); onVehicleUpdated(); }}
+            onDone={() => setAddingEntry(false)}
           />
         </Modal>
       )}

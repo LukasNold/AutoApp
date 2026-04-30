@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { db } from '../services/db';
+import { useQueryClient } from '@tanstack/react-query';
+import { addFuelEntry } from '../services/api';
 import type { Vehicle } from '../models';
 import { today } from '../utils/format';
 
@@ -9,6 +10,7 @@ interface Props {
 }
 
 export default function FuelEntryForm({ vehicles, onDone }: Props) {
+  const queryClient = useQueryClient();
   const [vehicleId, setVehicleId] = useState(vehicles[0]?.id?.toString() ?? '');
   const [mileage, setMileage] = useState('');
   const [date, setDate] = useState(today());
@@ -24,20 +26,15 @@ export default function FuelEntryForm({ vehicles, onDone }: Props) {
     const km = parseInt(mileage);
     const vid = parseInt(vehicleId);
 
-    await db.fuelEntries.add({
+    await addFuelEntry({
       vehicleId: vid,
       date,
       mileage: km,
       liters: liters ? parseFloat(liters) : undefined,
       totalPrice: totalPrice ? parseFloat(totalPrice) : undefined,
     });
-
-    // Bump vehicle's current mileage if higher
-    const vehicle = await db.vehicles.get(vid);
-    if (vehicle?.id != null && km > vehicle.currentMileage) {
-      await db.vehicles.update(vehicle.id, { currentMileage: km });
-    }
-
+    queryClient.invalidateQueries({ queryKey: ['fuel'] });
+    queryClient.invalidateQueries({ queryKey: ['vehicles'] });
     onDone();
   }
 

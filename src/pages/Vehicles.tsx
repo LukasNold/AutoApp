@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '../services/db';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { getVehicles, getPlans, getEntries, deleteVehicle } from '../services/api';
 import type { Vehicle } from '../models';
 import { isOverdue } from '../utils/maintenance';
 import { formatMileage } from '../utils/format';
@@ -11,19 +11,21 @@ import VehicleDetail from '../components/VehicleDetail';
 export default function Vehicles() {
   const [addOpen, setAddOpen] = useState(false);
   const [editing, setEditing] = useState<Vehicle | null>(null);
-  const [detail, setDetail] = useState<Vehicle | null>(null);
+  const [detailId, setDetailId] = useState<number | null>(null);
 
-  const vehicles = useLiveQuery(() => db.vehicles.toArray()) ?? [];
-  const plans = useLiveQuery(() => db.maintenancePlans.toArray()) ?? [];
-  const entries = useLiveQuery(() => db.maintenanceEntries.toArray()) ?? [];
+  const queryClient = useQueryClient();
+  const { data: vehicles = [] } = useQuery({ queryKey: ['vehicles'], queryFn: getVehicles });
+  const { data: plans = [] } = useQuery({ queryKey: ['plans'], queryFn: getPlans });
+  const { data: entries = [] } = useQuery({ queryKey: ['entries'], queryFn: getEntries });
 
-  async function deleteVehicle(vehicle: Vehicle) {
+  const detailVehicle = vehicles.find(v => v.id === detailId) ?? null;
+
+  async function handleDeleteVehicle(vehicle: Vehicle) {
     if (!confirm(`Delete ${vehicle.make} ${vehicle.model}? All plans and entries will also be deleted.`)) return;
-    await db.transaction('rw', db.vehicles, db.maintenancePlans, db.maintenanceEntries, async () => {
-      await db.maintenancePlans.where('vehicleId').equals(vehicle.id!).delete();
-      await db.maintenanceEntries.where('vehicleId').equals(vehicle.id!).delete();
-      await db.vehicles.delete(vehicle.id!);
-    });
+    await deleteVehicle(vehicle.id!);
+    queryClient.invalidateQueries({ queryKey: ['vehicles'] });
+    queryClient.invalidateQueries({ queryKey: ['plans'] });
+    queryClient.invalidateQueries({ queryKey: ['entries'] });
   }
 
   function vehiclePlans(vehicleId: number) {
@@ -108,7 +110,7 @@ export default function Vehicles() {
               {/* Actions */}
               <div className="flex gap-2">
                 <button
-                  onClick={() => setDetail(vehicle)}
+                  onClick={() => setDetailId(vehicle.id!)}
                   className="flex-1 py-1.5 text-xs font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
                 >
                   Details
@@ -120,7 +122,7 @@ export default function Vehicles() {
                   Edit
                 </button>
                 <button
-                  onClick={() => deleteVehicle(vehicle)}
+                  onClick={() => handleDeleteVehicle(vehicle)}
                   className="px-3 py-1.5 text-xs text-gray-400 border border-gray-200 rounded-lg hover:text-red-600 hover:border-red-200"
                 >
                   ×
@@ -146,19 +148,13 @@ export default function Vehicles() {
       )}
 
       {/* Vehicle detail modal */}
-      {detail && (
+      {detailVehicle && (
         <Modal
-          title={`${detail.make} ${detail.model}`}
-          onClose={() => setDetail(null)}
+          title={`${detailVehicle.make} ${detailVehicle.model}`}
+          onClose={() => setDetailId(null)}
           size="xl"
         >
-          <VehicleDetail
-            vehicle={detail}
-            onVehicleUpdated={() => {
-              // useLiveQuery auto-refreshes; just sync the detail vehicle ref
-              db.vehicles.get(detail.id!).then(v => v && setDetail(v));
-            }}
-          />
+          <VehicleDetail vehicle={detailVehicle} />
         </Modal>
       )}
     </div>

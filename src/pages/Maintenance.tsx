@@ -1,7 +1,6 @@
 import { useState } from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '../services/db';
-import { deleteEntry } from '../services/maintenanceService';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { getVehicles, getEntries, deleteEntry } from '../services/api';
 import { formatDate, formatMileage, formatCurrency } from '../utils/format';
 import Modal from '../components/Modal';
 import MaintenanceEntryForm from '../components/MaintenanceEntryForm';
@@ -10,10 +9,9 @@ export default function Maintenance() {
   const [logOpen, setLogOpen] = useState(false);
   const [vehicleFilter, setVehicleFilter] = useState<string>('all');
 
-  const vehicles = useLiveQuery(() => db.vehicles.toArray()) ?? [];
-  const allEntries = useLiveQuery(
-    () => db.maintenanceEntries.orderBy('date').reverse().toArray()
-  ) ?? [];
+  const queryClient = useQueryClient();
+  const { data: vehicles = [] } = useQuery({ queryKey: ['vehicles'], queryFn: getVehicles });
+  const { data: allEntries = [] } = useQuery({ queryKey: ['entries'], queryFn: getEntries });
 
   const vehicleMap = new Map(vehicles.map(v => [v.id!, v]));
 
@@ -22,7 +20,10 @@ export default function Maintenance() {
     : allEntries.filter(e => e.vehicleId === parseInt(vehicleFilter));
 
   async function handleDelete(id: number) {
-    if (confirm('Delete this entry?')) await deleteEntry(id);
+    if (confirm('Delete this entry?')) {
+      await deleteEntry(id);
+      queryClient.invalidateQueries({ queryKey: ['entries'] });
+    }
   }
 
   return (

@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { db } from '../services/db';
+import { useQueryClient } from '@tanstack/react-query';
+import { addVehicle, updateVehicle } from '../services/api';
 import type { Vehicle } from '../models';
 import { today } from '../utils/format';
 
@@ -31,6 +32,7 @@ function toForm(v?: Vehicle): F {
 export default function VehicleForm({ vehicle, onDone }: Props) {
   const [f, setF] = useState<F>(() => toForm(vehicle));
   const [saving, setSaving] = useState(false);
+  const queryClient = useQueryClient();
 
   const set = (field: keyof F) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setF(prev => ({ ...prev, [field]: e.target.value }));
@@ -50,10 +52,11 @@ export default function VehicleForm({ vehicle, onDone }: Props) {
       notes: f.notes.trim() || undefined,
     };
     if (vehicle?.id != null) {
-      await db.vehicles.update(vehicle.id, data);
+      await updateVehicle(vehicle.id, data);
     } else {
-      await db.vehicles.add(data);
+      await addVehicle(data);
     }
+    await queryClient.invalidateQueries({ queryKey: ['vehicles'] });
     onDone();
   }
 
