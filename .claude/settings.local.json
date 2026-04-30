@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mv autoapp-tmp/* .)",
+      "Bash(mv autoapp-tmp/.gitignore .)",
+      "Bash(rmdir autoapp-tmp *)"
+    ]
+  }
+}
